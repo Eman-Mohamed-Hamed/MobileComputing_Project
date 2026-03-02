@@ -27,7 +27,7 @@ const { width, height } = Dimensions.get("window");
 
 // const API_BASE_URL = "http://192.168.1.100:5000";
 
-const API_BASE_URL = "http://192.168.43.98:5000"
+const API_BASE_URL = ""    // حط ال IP address of flask server  هنا  
 
 // ============================================
 // THEME COLORS

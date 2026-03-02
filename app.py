@@ -17,7 +17,7 @@ model = joblib.load("qr_guard_rf_model.pkl")
 print("✅ Model loaded successfully!")
 
 # VirusTotal API key
-VT_API_KEY = "d6b18cbcb3b036772c84d057f64a98ad16dd6169d58df8cf07ee8fc02d35ce31"
+VT_API_KEY = ""      #  حط ال API key هنا   
 
 
 # ============================================
