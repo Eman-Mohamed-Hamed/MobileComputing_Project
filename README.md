@@ -57,6 +57,19 @@ mindmap
       VirusTotal integration
       AI + Threat Intelligence
 ```
+## 📊 Survey Results & Persona
+![Field Responses](docs/survey-results/What_is_your_field_.png)  
+![Familiarity with Phishing](docs/survey-results/How_familiar_are_you_with_phishing_attacks_.png)  
+![AI Scanner Usage](docs/survey-results/Would_you_use_an_AI-based_URL_scanner_before_opening_a_link_.png)  
+![QR Awareness](docs/survey-results/Do_you_know_that_QR_codes_can_lead_to_malicious_websites_.png)  
+![Suspicious Links](docs/survey-results/Have_you_ever_received_a_suspicious_link_.png)  
+![Main Concern](docs/survey-results/What_concerns_you_most_when_clicking_a_link_.png)  
+![Trusted Method](docs/survey-results/Which_scanning_method_do_you_trust_more_.png)  
+![Trust Feature](docs/survey-results/What_feature_would_increase_your_trust_.png)  
+![Recommend Tool](docs/survey-results/Would_you_recommend_such_a_tool_to_others_.png)  
+
+[📄 Persona Report](docs/Persona.pdf)
+
 🛠️ Tech Stack
 
 Machine Learning Model
