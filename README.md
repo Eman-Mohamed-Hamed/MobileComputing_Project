@@ -57,7 +57,9 @@ mindmap
       VirusTotal integration
       AI + Threat Intelligence
 ```
-📱 Application Wireframe
+
+## 📱 Application Wireframe
+
 The following wireframe illustrates the main screens of the QR Guard mobile application and the interaction flow between them.
 <p align="center"> <img src="docs/wireframe.png" width="750"> </p>
 ## 📊 Survey Results & Persona
