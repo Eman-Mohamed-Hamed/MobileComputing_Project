@@ -62,6 +62,7 @@ mindmap
 
 The following wireframe illustrates the main screens of the QR Guard mobile application and the interaction flow between them.
 <p align="center"> <img src="docs/wireframe.png" width="750"> </p>
+
 ## 📊 Survey Results & Persona
 ![Field Responses](docs/survey-results/What_is_your_field_.png)  
 ![Familiarity with Phishing](docs/survey-results/How_familiar_are_you_with_phishing_attacks_.png)  
