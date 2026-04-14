@@ -14,6 +14,12 @@ Smart detection. Clear explanation. Zero guesswork.
 Many users click suspicious links without verification.  
 Phishing attacks remain one of the most common cyber threats.
 
+## 🎯 Problem Statement
+
+Users are frequently exposed to suspicious links and QR codes.  
+Although many have moderate awareness of phishing attacks, they still struggle to confidently identify malicious URLs.  
+They need a simple, fast, and trustworthy tool that helps them verify links before opening them.
+
 ## 🎯 Our Mission
 Increase user trust and reduce phishing risks before opening any URL or QR code.
 
