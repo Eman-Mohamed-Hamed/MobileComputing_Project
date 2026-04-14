@@ -82,7 +82,7 @@ The following wireframe illustrates the main screens of the QR Guard mobile appl
 
 [📄 Persona Report](docs/Persona.pdf)
 
-
+[📄 Updated Persona Report]()
 
 🛠️ Tech Stack
 
