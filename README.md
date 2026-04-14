@@ -132,4 +132,4 @@ Because security tools should not only detect threats —
 they should explain them clearly and build trust.
 
 QR Guard focuses on both detection and explanation to empower users to make safe decisions.
-```
+
