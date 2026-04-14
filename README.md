@@ -105,32 +105,32 @@ The following wireframe illustrates the main screens of the QR Guard mobile appl
 
   ## 👤 Personas
 
+- Initial Personas:
 [📄 Persona Report](docs/Persona.pdf)
 
+- Updated Personas:  
 [📄 Updated Persona Report](docs/Updated_Personas.pdf)
 
 ---
 
-##🛠️ Tech Stack
+## 🛠️ Tech Stack
 
-Machine Learning Model
+- Frontend: React Native (Expo)
+- Backend: Flask (Python)
+- Machine Learning: Random Forest Model
+- API: VirusTotal
 
-VirusTotal API
+## 📈 Future Improvements
 
-Flutter / React / Python (Add your framework here)
+- 🌐 Browser Extension
+- 📱 Mobile Version
+- 📷 Live QR Camera Scanner
+- 🔄 Real-Time Threat Updates
+  
+## ⭐ Why QR Guard?
 
-📈 Future Improvements
-
-🌐 Browser Extension
-
-📱 Mobile Version
-
-📷 Live QR Camera Scanner
-
-🔄 Real-Time Threat Updates
-
-⭐ Why QR Guard?
-
-Because security tools should not only detect threats —
+Because security tools should not only detect threats —  
 they should explain them clearly and build trust.
+
+QR Guard focuses on both detection and explanation to empower users to make safe decisions.
 ```
