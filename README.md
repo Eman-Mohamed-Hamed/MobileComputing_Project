@@ -24,6 +24,13 @@ They need a simple, fast, and trustworthy tool that helps them verify links befo
 Increase user trust and reduce phishing risks before opening any URL or QR code.
 
 ---
+## 💡 Proposed Solution
+
+QR Guard provides a hybrid approach that combines:
+- AI-based URL classification
+- Threat intelligence using VirusTotal
+
+This approach was selected based on user preference for combining multiple detection methods to increase trust and accuracy.
 
 ## ✨ Core Features
 - 🧠 **AI-Based URL Classification**  
@@ -33,6 +40,14 @@ Increase user trust and reduce phishing risks before opening any URL or QR code.
 - ⚡ **Fast & User-Friendly Scanning**  
 - 🎨 **Color-Based Risk Indicator (Green / Red)**  
 
+## 🎨 Design Decisions
+
+- Dark theme inspired by cybersecurity tools
+- Color indicators:
+  - Green → Safe
+  - Red → Dangerous
+- Simple and intuitive interface for non-technical users
+- Clear visual feedback and animations during scanning
 ---
 
 ## 👥 Target Users
