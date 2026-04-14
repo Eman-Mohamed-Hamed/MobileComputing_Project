@@ -108,8 +108,7 @@ The following wireframe illustrates the main screens of the QR Guard mobile appl
 - Initial Personas:
 [📄 Persona Report](docs/Persona.pdf)
 
-- Updated Personas:  
-[📄 Updated Persona Report](docs/Updated_Personas.pdf)
+- Updated Personas:  [📄 Updated Persona Report](docs/Updated_Personas.pdf)
 
 ---
 
