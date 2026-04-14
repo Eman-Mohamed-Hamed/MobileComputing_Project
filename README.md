@@ -109,7 +109,9 @@ The following wireframe illustrates the main screens of the QR Guard mobile appl
 
 [📄 Updated Persona Report](docs/Updated_Personas.pdf)
 
-🛠️ Tech Stack
+---
+
+##🛠️ Tech Stack
 
 Machine Learning Model
 
