@@ -81,8 +81,8 @@ The following wireframe illustrates the main screens of the QR Guard mobile appl
 ![Recommend Tool](docs/survey-results/Would_you_recommend_such_a_tool_to_others_.png)  
 
 [📄 Persona Report](docs/Persona.pdf)
-[📄 Persona Report](docs/Persona.pdf)
-[📄 Updated Persona Report](docs/Updated Personas.pdf)
+
+[📄 Updated Persona Report](docs/Updated_Personas.pdf)
 
 🛠️ Tech Stack
 
