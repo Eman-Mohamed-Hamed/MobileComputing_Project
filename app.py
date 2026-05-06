@@ -1,31 +1,191 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 import pandas as pd
-import joblib
 import math
 import re
 from urllib.parse import urlparse
 import requests
 import base64
+import sqlite3
+import os
+from werkzeug.security import generate_password_hash, check_password_hash
+import jwt
+import datetime
+from functools import wraps
+
+try:
+    import joblib
+    model = joblib.load("qr_guard_rf_model.pkl")
+    print("✅ ML Model loaded successfully!")
+    MODEL_LOADED = True
+except Exception as e:
+    print(f"⚠️  ML Model not found ({e}). VirusTotal scanning will still work.")
+    MODEL_LOADED = False
+    model = None
 
 app = Flask(__name__)
 CORS(app)
 
-# Load the trained Random Forest model
-print("🔄 Loading QR Guard ML Model...")
-model = joblib.load("qr_guard_rf_model.pkl")
-print("✅ Model loaded successfully!")
-
-# VirusTotal API key
-VT_API_KEY = ""      #  حط ال API key هنا   
+SECRET_KEY = os.environ.get("SECRET_KEY", "qrguard-super-secret-key-change-in-prod-2024")
+DATABASE   = os.environ.get("DATABASE", "qrguard.db")
+VT_API_KEY = os.environ.get("VT_API_KEY", "")   # Put your VirusTotal API key here
 
 
-# ============================================
-# FEATURE EXTRACTION FUNCTIONS
-# ============================================
+def get_db():
+    conn = sqlite3.connect(DATABASE)
+    conn.row_factory = sqlite3.Row
+    return conn
+
+def init_db():
+    conn = get_db()
+    c = conn.cursor()
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            id            INTEGER PRIMARY KEY AUTOINCREMENT,
+            username      TEXT    UNIQUE NOT NULL,
+            email         TEXT    UNIQUE NOT NULL,
+            password_hash TEXT    NOT NULL,
+            created_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            last_login    TIMESTAMP
+        )
+    ''')
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS scan_history (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id     INTEGER NOT NULL,
+            url         TEXT    NOT NULL,
+            scan_method TEXT    NOT NULL,
+            verdict     TEXT    NOT NULL,
+            confidence  REAL,
+            scanned_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    ''')
+    conn.commit()
+    conn.close()
+    print("✅ Database initialised.")
+
+init_db()
+
+
+def generate_token(user_id):
+    payload = {
+        "user_id": user_id,
+        "exp": datetime.datetime.utcnow() + datetime.timedelta(days=30)
+    }
+    return jwt.encode(payload, SECRET_KEY, algorithm="HS256")
+
+def token_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        auth_header = request.headers.get("Authorization", "")
+        if not auth_header:
+            return jsonify({"error": "Authorization token missing"}), 401
+        token = auth_header[7:] if auth_header.startswith("Bearer ") else auth_header
+        try:
+            data    = jwt.decode(token, SECRET_KEY, algorithms=["HS256"])
+            user_id = data["user_id"]
+        except jwt.ExpiredSignatureError:
+            return jsonify({"error": "Token expired – please log in again"}), 401
+        except jwt.InvalidTokenError:
+            return jsonify({"error": "Invalid token"}), 401
+        return f(user_id, *args, **kwargs)
+    return decorated
+
+
+@app.route("/auth/register", methods=["POST"])
+def register():
+    data = request.get_json() or {}
+    username = data.get("username", "").strip()
+    email    = data.get("email", "").strip().lower()
+    password = data.get("password", "")
+
+    if not username or not email or not password:
+        return jsonify({"error": "Username, email and password are required"}), 400
+    if len(username) < 3:
+        return jsonify({"error": "Username must be at least 3 characters"}), 400
+    if not re.match(r"^[A-Za-z0-9_]+$", username):
+        return jsonify({"error": "Username: letters, numbers and underscores only"}), 400
+    if "@" not in email or "." not in email.split("@")[-1]:
+        return jsonify({"error": "Please enter a valid email address"}), 400
+    if len(password) < 6:
+        return jsonify({"error": "Password must be at least 6 characters"}), 400
+
+    password_hash = generate_password_hash(password, method="pbkdf2:sha256")
+
+    try:
+        conn = get_db()
+        c    = conn.cursor()
+        c.execute(
+            "INSERT INTO users (username, email, password_hash) VALUES (?, ?, ?)",
+            (username, email, password_hash)
+        )
+        user_id = c.lastrowid
+        conn.commit()
+        conn.close()
+    except sqlite3.IntegrityError as e:
+        conn.close()
+        if "username" in str(e):
+            return jsonify({"error": "Username already taken"}), 409
+        if "email" in str(e):
+            return jsonify({"error": "Email already registered"}), 409
+        return jsonify({"error": "Registration failed"}), 409
+
+    token = generate_token(user_id)
+    return jsonify({
+        "message": "Account created successfully!",
+        "token":   token,
+        "user":    {"id": user_id, "username": username, "email": email}
+    }), 201
+
+
+@app.route("/auth/login", methods=["POST"])
+def login():
+    data       = request.get_json() or {}
+    identifier = data.get("identifier", "").strip()
+    password   = data.get("password", "")
+
+    if not identifier or not password:
+        return jsonify({"error": "Please enter your username/email and password"}), 400
+
+    conn = get_db()
+    c    = conn.cursor()
+    c.execute(
+        "SELECT * FROM users WHERE email = ? OR username = ?",
+        (identifier.lower(), identifier)
+    )
+    user = c.fetchone()
+
+    if not user or not check_password_hash(user["password_hash"], password):
+        conn.close()
+        return jsonify({"error": "Invalid credentials"}), 401
+
+    c.execute("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?", (user["id"],))
+    conn.commit()
+    conn.close()
+
+    token = generate_token(user["id"])
+    return jsonify({
+        "message": "Welcome back!",
+        "token":   token,
+        "user":    {"id": user["id"], "username": user["username"], "email": user["email"]}
+    })
+
+
+@app.route("/auth/me", methods=["GET"])
+@token_required
+def get_me(user_id):
+    conn = get_db()
+    c    = conn.cursor()
+    c.execute("SELECT id, username, email, created_at, last_login FROM users WHERE id = ?", (user_id,))
+    user = c.fetchone()
+    conn.close()
+    if not user:
+        return jsonify({"error": "User not found"}), 404
+    return jsonify(dict(user))
+
 
 def calculate_entropy(text):
-    """Calculates Shannon Entropy to detect randomly generated strings."""
     if not text:
         return 0
     entropy = 0
@@ -34,273 +194,163 @@ def calculate_entropy(text):
         entropy += -p_x * math.log(p_x, 2)
     return entropy
 
-
 def get_advanced_url_features(url):
-    """Extracts 20 features from a URL for ML prediction."""
     url = str(url).lower()
-    if not url.startswith('http'):
-        url_to_parse = 'http://' + url
-    else:
-        url_to_parse = url
-
-    # Bulletproof URL parsing
+    url_to_parse = url if url.startswith("http") else "http://" + url
     try:
-        parsed = urlparse(url_to_parse)
-        hostname = parsed.hostname if parsed.hostname else ""
-        path = parsed.path if parsed.path else ""
+        parsed   = urlparse(url_to_parse)
+        hostname = parsed.hostname or ""
+        path     = parsed.path or ""
     except ValueError:
-        url_to_parse_clean = url_to_parse.replace('[', '').replace(']', '')
         try:
-            parsed = urlparse(url_to_parse_clean)
-            hostname = parsed.hostname if parsed.hostname else ""
-            path = parsed.path if parsed.path else ""
-        except ValueError:
-            hostname = ""
-            path = url
+            parsed   = urlparse(url_to_parse.replace("[","").replace("]",""))
+            hostname = parsed.hostname or ""
+            path     = parsed.path or ""
+        except:
+            hostname = ""; path = url
 
-    # Expanded suspicious keywords
-    sus_words = [
-        'login', 'verify', 'update', 'secure', 'account', 'banking',
-        'paypal', 'cmd', 'webscr', 'admin', 'free', 'bonus', 'claim',
-        'support', 'service', 'recover', 'wallet'
-    ]
-
-    # 1. Length Features
-    url_len = len(url)
-    host_len = len(hostname)
-    path_len = len(path)
-
-    # 2. Character Counts
-    num_dots = url.count('.')
-    num_hyphens = url.count('-')
-    num_underscores = url.count('_')
-    num_slashes = url.count('/')
-    num_question_marks = url.count('?')
-    num_equals = url.count('=')
-    num_at = url.count('@')
-    num_ampersands = url.count('&')
-
-    # 3. Alphanumeric Properties
-    num_digits = sum(c.isdigit() for c in url)
+    sus_words = ["login","verify","update","secure","account","banking","paypal",
+                 "cmd","webscr","admin","free","bonus","claim","support","service","recover","wallet"]
+    num_digits  = sum(c.isdigit() for c in url)
     num_letters = sum(c.isalpha() for c in url)
 
-    # 4. Ratios & Math
-    digit_letter_ratio = num_digits / num_letters if num_letters > 0 else 0
-    url_entropy = calculate_entropy(url)
-
-    # 5. Logical/Keyword Features
-    num_sus_words = sum(1 for word in sus_words if word in url)
-    has_ip_address = 1 if re.search(
-        r'\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b', hostname
-    ) else 0
-    has_https = 1 if url.startswith('https://') else 0
-    has_shortener = 1 if any(
-        short in hostname for short in ['bit.ly', 'goo.gl', 't.co', 'tinyurl']
-    ) else 0
-    directory_depth = path.count('/')
-
     return {
-        'url_length': url_len,
-        'hostname_length': host_len,
-        'path_length': path_len,
-        'num_dots': num_dots,
-        'num_hyphens': num_hyphens,
-        'num_underscores': num_underscores,
-        'num_slashes': num_slashes,
-        'num_question_marks': num_question_marks,
-        'num_equals': num_equals,
-        'num_at': num_at,
-        'num_ampersands': num_ampersands,
-        'num_digits': num_digits,
-        'num_letters': num_letters,
-        'digit_letter_ratio': digit_letter_ratio,
-        'url_entropy': url_entropy,
-        'num_sus_words': num_sus_words,
-        'has_ip_address': has_ip_address,
-        'has_https': has_https,
-        'has_shortener': has_shortener,
-        'directory_depth': directory_depth
+        "url_length": len(url), "hostname_length": len(hostname), "path_length": len(path),
+        "num_dots": url.count("."), "num_hyphens": url.count("-"),
+        "num_underscores": url.count("_"), "num_slashes": url.count("/"),
+        "num_question_marks": url.count("?"), "num_equals": url.count("="),
+        "num_at": url.count("@"), "num_ampersands": url.count("&"),
+        "num_digits": num_digits, "num_letters": num_letters,
+        "digit_letter_ratio": num_digits / num_letters if num_letters > 0 else 0,
+        "url_entropy": calculate_entropy(url),
+        "num_sus_words": sum(1 for w in sus_words if w in url),
+        "has_ip_address": 1 if re.search(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b", hostname) else 0,
+        "has_https": 1 if url.startswith("https://") else 0,
+        "has_shortener": 1 if any(s in hostname for s in ["bit.ly","goo.gl","t.co","tinyurl"]) else 0,
+        "directory_depth": path.count("/")
     }
 
-
-# ============================================
-# VIRUSTOTAL API FUNCTION
-# ============================================
-
 def check_virustotal(url):
-    """Checks the URL against VirusTotal's database using a single GET request."""
+    if not VT_API_KEY:
+        return {"scanned": False, "error": "VirusTotal API key not configured on server"}
     try:
-        # VirusTotal v3 requires the URL to be base64url encoded
-        url_id = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
-
-        headers = {
-            "accept": "application/json",
-            "x-apikey": VT_API_KEY
-        }
-
+        url_id   = base64.urlsafe_b64encode(url.encode()).decode().strip("=")
         response = requests.get(
             f"https://www.virustotal.com/api/v3/urls/{url_id}",
-            headers=headers,
+            headers={"accept": "application/json", "x-apikey": VT_API_KEY},
             timeout=15
         )
-
         if response.status_code == 200:
-            data = response.json()
-            stats = data['data']['attributes']['last_analysis_stats']
-            malicious_votes = stats.get('malicious', 0)
-            suspicious_votes = stats.get('suspicious', 0)
-            harmless_votes = stats.get('harmless', 0)
-            undetected_votes = stats.get('undetected', 0)
-            timeout_votes = stats.get('timeout', 0)
-            total_votes = sum(stats.values())
-
+            stats = response.json()["data"]["attributes"]["last_analysis_stats"]
+            mal = stats.get("malicious", 0); sus = stats.get("suspicious", 0)
             return {
-                "scanned": True,
-                "malicious_votes": malicious_votes,
-                "suspicious_votes": suspicious_votes,
-                "harmless_votes": harmless_votes,
-                "undetected_votes": undetected_votes,
-                "timeout_votes": timeout_votes,
-                "total_engines": total_votes,
-                "is_flagged": (malicious_votes + suspicious_votes) > 0,
-                "stats": stats
+                "scanned": True, "malicious_votes": mal, "suspicious_votes": sus,
+                "harmless_votes": stats.get("harmless", 0),
+                "undetected_votes": stats.get("undetected", 0),
+                "timeout_votes": stats.get("timeout", 0),
+                "total_engines": sum(stats.values()),
+                "is_flagged": (mal + sus) > 0, "stats": stats
             }
         elif response.status_code == 404:
-            return {
-                "scanned": False,
-                "error": "URL not found in VirusTotal database. It may not have been scanned before."
-            }
-        else:
-            return {
-                "scanned": False,
-                "error": f"VirusTotal API error (status {response.status_code})"
-            }
-
+            return {"scanned": False, "error": "URL not found in VirusTotal database"}
+        return {"scanned": False, "error": f"VirusTotal API error (status {response.status_code})"}
     except requests.exceptions.Timeout:
-        return {"scanned": False, "error": "VirusTotal API request timed out"}
+        return {"scanned": False, "error": "VirusTotal request timed out"}
     except Exception as e:
         return {"scanned": False, "error": str(e)}
 
+def save_scan(user_id, url, method, verdict, confidence=None):
+    try:
+        conn = get_db(); c = conn.cursor()
+        c.execute("INSERT INTO scan_history (user_id, url, scan_method, verdict, confidence) VALUES (?,?,?,?,?)",
+                  (user_id, url, method, verdict, confidence))
+        conn.commit(); conn.close()
+    except: pass
 
-# ============================================
-# API ENDPOINTS
-# ============================================
 
-@app.route('/scan/virustotal', methods=['POST'])
-def scan_virustotal():
-    """Scan a URL using VirusTotal API only."""
-    data = request.get_json()
-    if not data or 'url' not in data:
-        return jsonify({'error': 'No URL provided'}), 400
+@app.route("/scan/virustotal", methods=["POST"])
+@token_required
+def scan_virustotal(user_id):
+    data = request.get_json() or {}
+    url  = data.get("url")
+    if not url: return jsonify({"error": "No URL provided"}), 400
+    result = check_virustotal(url)
+    save_scan(user_id, url, "virustotal", "malicious" if result.get("is_flagged") else "safe")
+    return jsonify({"url": url, "method": "virustotal", **result})
 
-    target_url = data['url']
-    vt_results = check_virustotal(target_url)
 
+@app.route("/scan/ml", methods=["POST"])
+@token_required
+def scan_ml(user_id):
+    if not MODEL_LOADED:
+        return jsonify({"error": "ML model not loaded. Ensure qr_guard_rf_model.pkl exists."}), 503
+    data = request.get_json() or {}
+    url  = data.get("url")
+    if not url: return jsonify({"error": "No URL provided"}), 400
+
+    fd   = get_advanced_url_features(url)
+    pred = model.predict(pd.DataFrame([fd]))[0]
+    prob = model.predict_proba(pd.DataFrame([fd]))[0]
+    is_mal = bool(pred == 1)
+    conf   = float(prob[pred] * 100)
+
+    save_scan(user_id, url, "ml", "malicious" if is_mal else "safe", conf)
     return jsonify({
-        'url': target_url,
-        'method': 'virustotal',
-        **vt_results
-    })
-
-
-@app.route('/scan/ml', methods=['POST'])
-def scan_ml():
-    """Scan a URL using the ML model only."""
-    data = request.get_json()
-    if not data or 'url' not in data:
-        return jsonify({'error': 'No URL provided'}), 400
-
-    target_url = data['url']
-
-    # Extract features
-    features_dict = get_advanced_url_features(target_url)
-    features_df = pd.DataFrame([features_dict])
-
-    # Predict
-    prediction = model.predict(features_df)[0]
-    probabilities = model.predict_proba(features_df)[0]
-
-    is_malicious = bool(prediction == 1)
-    confidence = float(probabilities[prediction] * 100)
-
-    return jsonify({
-        'url': target_url,
-        'method': 'ml',
-        'is_malicious': is_malicious,
-        'confidence': round(confidence, 2),
-        'prediction': int(prediction),
-        'features': {
-            'url_length': features_dict['url_length'],
-            'hostname_length': features_dict['hostname_length'],
-            'path_length': features_dict['path_length'],
-            'url_entropy': round(features_dict['url_entropy'], 2),
-            'num_sus_words': features_dict['num_sus_words'],
-            'has_ip_address': bool(features_dict['has_ip_address']),
-            'has_https': bool(features_dict['has_https']),
-            'has_shortener': bool(features_dict['has_shortener']),
-            'directory_depth': features_dict['directory_depth'],
-            'digit_letter_ratio': round(features_dict['digit_letter_ratio'], 4),
-            'num_dots': features_dict['num_dots'],
-            'num_hyphens': features_dict['num_hyphens'],
+        "url": url, "method": "ml", "is_malicious": is_mal,
+        "confidence": round(conf, 2), "prediction": int(pred),
+        "features": {
+            "url_length": fd["url_length"], "hostname_length": fd["hostname_length"],
+            "path_length": fd["path_length"], "url_entropy": round(fd["url_entropy"], 2),
+            "num_sus_words": fd["num_sus_words"], "has_ip_address": bool(fd["has_ip_address"]),
+            "has_https": bool(fd["has_https"]), "has_shortener": bool(fd["has_shortener"]),
+            "directory_depth": fd["directory_depth"], "digit_letter_ratio": round(fd["digit_letter_ratio"], 4),
+            "num_dots": fd["num_dots"], "num_hyphens": fd["num_hyphens"],
         }
     })
 
 
-@app.route('/scan/both', methods=['POST'])
-def scan_both():
-    """Scan a URL using both VirusTotal and ML model."""
-    data = request.get_json()
-    if not data or 'url' not in data:
-        return jsonify({'error': 'No URL provided'}), 400
+@app.route("/scan/both", methods=["POST"])
+@token_required
+def scan_both(user_id):
+    data = request.get_json() or {}
+    url  = data.get("url")
+    if not url: return jsonify({"error": "No URL provided"}), 400
 
-    target_url = data['url']
+    ai_engine = {"available": False}
+    if MODEL_LOADED:
+        fd   = get_advanced_url_features(url)
+        pred = model.predict(pd.DataFrame([fd]))[0]
+        prob = model.predict_proba(pd.DataFrame([fd]))[0]
+        ai_engine = {
+            "available": True, "is_malicious": bool(pred == 1),
+            "confidence": round(float(prob[pred] * 100), 2),
+            "features": {"url_entropy": round(fd["url_entropy"], 2), "num_sus_words": fd["num_sus_words"],
+                         "has_ip_address": bool(fd["has_ip_address"]), "has_https": bool(fd["has_https"]),
+                         "has_shortener": bool(fd["has_shortener"])}
+        }
 
-    # Layer 1: ML Model
-    features_dict = get_advanced_url_features(target_url)
-    features_df = pd.DataFrame([features_dict])
-    prediction = model.predict(features_df)[0]
-    probabilities = model.predict_proba(features_df)[0]
-    ai_is_malicious = bool(prediction == 1)
-    ai_confidence = float(probabilities[prediction] * 100)
-
-    # Layer 2: VirusTotal API
-    vt_results = check_virustotal(target_url)
-
-    # Combined verdict
-    final_status = "Safe"
-    if ai_is_malicious or vt_results.get('is_flagged', False):
-        final_status = "Danger"
-
-    return jsonify({
-        'url': target_url,
-        'method': 'both',
-        'final_status': final_status,
-        'ai_engine': {
-            'is_malicious': ai_is_malicious,
-            'confidence': round(ai_confidence, 2),
-            'prediction': int(prediction),
-            'features': {
-                'url_length': features_dict['url_length'],
-                'url_entropy': round(features_dict['url_entropy'], 2),
-                'num_sus_words': features_dict['num_sus_words'],
-                'has_ip_address': bool(features_dict['has_ip_address']),
-                'has_https': bool(features_dict['has_https']),
-                'has_shortener': bool(features_dict['has_shortener']),
-            }
-        },
-        'virustotal_engine': vt_results
-    })
+    vt  = check_virustotal(url)
+    verdict = "Danger" if (ai_engine.get("is_malicious") or vt.get("is_flagged")) else "Safe"
+    save_scan(user_id, url, "both", verdict.lower())
+    return jsonify({"url": url, "method": "both", "final_status": verdict,
+                    "ai_engine": ai_engine, "virustotal_engine": vt})
 
 
-@app.route('/health', methods=['GET'])
+@app.route("/scan/history", methods=["GET"])
+@token_required
+def get_scan_history(user_id):
+    conn = get_db(); c = conn.cursor()
+    c.execute("SELECT * FROM scan_history WHERE user_id=? ORDER BY scanned_at DESC LIMIT 50", (user_id,))
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return jsonify({"history": rows})
+
+
+@app.route("/health", methods=["GET"])
 def health_check():
-    """Health check endpoint."""
-    return jsonify({
-        'status': 'ok',
-        'model_loaded': model is not None,
-        'message': 'QR Guard API is running!'
-    })
+    return jsonify({"status": "ok", "model_loaded": MODEL_LOADED,
+                    "vt_key_set": bool(VT_API_KEY), "message": "QR Guard API is running!"})
 
 
-if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=5000, debug=True)
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000, debug=True)
