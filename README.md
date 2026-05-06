@@ -11,8 +11,8 @@ Smart detection. Clear explanation. Zero guesswork.
 ---
 
 ## 🚨 The Problem
-Many users click suspicious links without verification.  
-Phishing attacks remain one of the most common cyber threats.
+Users are frequently exposed to malicious and phishing links.
+Most users cannot confidently determine whether a link is safe or harmful before opening it.
 
 ## 🎯 Problem Statement
 
@@ -26,20 +26,24 @@ Increase user trust and reduce phishing risks before opening any URL or QR code.
 ---
 ## 💡 Proposed Solution
 
-QR Guard provides a hybrid approach that combines:
-- AI-based URL classification
-- Threat intelligence using VirusTotal
+QR Guard provides a fast and reliable way to verify links using a hybrid detection system:
 
-This approach was selected based on user preference for combining multiple detection methods to increase trust and accuracy.
+AI model analyzes URL structure and behavior patterns
+VirusTotal checks reputation across multiple security engines
+Final result is presented in a simple and clear format
+
 
 ## ✨ Core Features
-- 🧠 **AI-Based URL Classification**  
-- 📊 **Confidence Score** for every scan  
-- 🛡️ **VirusTotal Integration**  
-- 📖 **Detailed Threat Explanation**  
-- ⚡ **Fast & User-Friendly Scanning**  
-- 🎨 **Color-Based Risk Indicator (Green / Red)**  
 
+- 🔍 URL scanning and validation
+- 📷 QR code security check
+- 🧠 Machine Learning-based detection
+- 🛡️ VirusTotal integration
+- 📊 Risk verdict with confidence score
+- ⚡ Fast real-time analysis
+- 🔐 Secure authentication system
+- 📱 Clean and user-friendly UI
+  
 ## 🎨 Design Decisions
 
 - Dark theme inspired by cybersecurity tools
@@ -114,18 +118,44 @@ The following wireframe illustrates the main screens of the QR Guard mobile appl
 
 ## 🛠️ Tech Stack
 
-- Frontend: React Native (Expo)
-- Backend: Flask (Python)
-- Machine Learning: Random Forest Model
-- API: VirusTotal
+📱 Mobile Application
+.React Native (Expo)
+.Expo Router
+🧠 Backend
+.Flask (Python)
+.SQLite Database
+.JWT Authentication
+🤖 Machine Learning
+.Random Forest Classifier
+.Feature-based URL analysis
+🌐 External API
+.VirusTotal API
 
+## 🔐 Authentication System
+User registration and login
+Password hashing (PBKDF2-SHA256)
+JWT-based authentication
+Secure API access control
+
+## 📡 API Endpoints
+  - Authentication
+  POST /auth/register → Create account
+  POST /auth/login → User login
+  GET /auth/me → Get user profile
+  - Scanning
+  POST /scan/ml → AI-based scan
+  POST /scan/virustotal → VirusTotal scan
+  POST /scan/both → Combined scan
+  - History
+  GET /scan/history → User scan history
+  
 ## 📈 Future Improvements
 
-- 🌐 Browser Extension
-- 📱 Mobile Version
-- 📷 Live QR Camera Scanner
-- 🔄 Real-Time Threat Updates
-  
+- 📷 Live camera QR scanning
+- 🌐 Browser extension version
+- ⚡ Real-time threat intelligence updates
+- 📱 Push notifications for suspicious links
+- 
 ## ⭐ Why QR Guard?
 
 Because security tools should not only detect threats —  
