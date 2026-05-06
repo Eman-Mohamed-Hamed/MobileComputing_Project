@@ -14,12 +14,6 @@ Smart detection. Clear explanation. Zero guesswork.
 Users are frequently exposed to malicious and phishing links.
 Most users cannot confidently determine whether a link is safe or harmful before opening it.
 
-## 🎯 Problem Statement
-
-Users are frequently exposed to suspicious links and QR codes.  
-Although many have moderate awareness of phishing attacks, they still struggle to confidently identify malicious URLs.  
-They need a simple, fast, and trustworthy tool that helps them verify links before opening them.
-
 ## 🎯 Our Mission
 Increase user trust and reduce phishing risks before opening any URL or QR code.
 
