@@ -176,7 +176,7 @@ mindmap
       AI + VirusTotal
 ```
 
-## Stage IV — Wireframe
+## 📌Stage IV — Wireframe
 
 ## 📱 Wireframe Description
 
