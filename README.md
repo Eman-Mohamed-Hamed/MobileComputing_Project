@@ -288,9 +288,13 @@ User Input → URL/QR Scan → AI Model → VirusTotal API → Risk Score → Ex
 
 ## 👥 Team Contribution
 Frontend Development
+
 Backend Development
+
 Machine Learning Model
+
 UX Research & Survey
+
 Documentation
 
 ## ⭐ Why QR Guard?
