@@ -101,6 +101,25 @@ The following wireframe illustrates the main screens of the QR Guard mobile appl
 - Users highly value detailed explanations and confidence scores.
 - Many users are willing to use and recommend such a tool.
 
+## 🧠 Empathy Map
+
+The empathy map helps visualize user behavior, emotions, and concerns when interacting with unknown URLs and QR codes. It highlights the psychological and practical challenges users face before deciding whether to trust a link.
+
+<p align="center">
+  <img src="docs/empathy-map.png" width="900">
+</p>
+
+### Key Findings
+- Users feel anxious before opening unknown links.
+- They seek quick and reliable verification.
+- Trust increases when results are clear and explained.
+- Users prefer simple tools without technical complexity.
+
+
+
+
+
+
   ## 👤 Personas
 
 - Initial Personas:
