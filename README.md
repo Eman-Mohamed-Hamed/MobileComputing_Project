@@ -175,7 +175,7 @@ mindmap
       Validate threats
       AI + VirusTotal
 ```
-
+---
 ## 📌Stage IV — Wireframe
 
 ## 📱 Wireframe Description
