@@ -208,6 +208,7 @@ Home
 🔐 Secure authentication
 📱 Clean UI
 
+
 ## 🎨 Design Decisions
 
 - Cybersecurity dark theme  
@@ -284,17 +285,6 @@ User Input → URL/QR Scan → AI Model → VirusTotal API → Risk Score → Ex
 2. Install dependencies  
 3. Run backend server  
 4. Start mobile application  
-
-## ✨ Features
-
-- URL scanning  
-- QR code scanning  
-- AI-based detection  
-- VirusTotal integration  
-- Risk score & confidence level  
-- Fast real-time results  
-- Secure authentication  
-- Clean UI design  
 
 ## 👥 Team Contribution
 Frontend Development
