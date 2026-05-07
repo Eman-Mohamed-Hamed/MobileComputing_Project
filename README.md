@@ -200,12 +200,19 @@ Home
 ## ✨ Features
 
 🔍 URL scanning
+
 📷 QR code scanning
+
 🧠 AI-based detection
+
 🛡️ VirusTotal integration
+
 📊 Risk score + confidence
+
 ⚡ Fast real-time results
+
 🔐 Secure authentication
+
 📱 Clean UI
 
 
